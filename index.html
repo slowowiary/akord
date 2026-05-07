@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Пісенник</title>
+
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: Arial;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    .song-btn {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #222;
+      border: none;
+      color: white;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: left;
+      font-size: 18px;
+    }
+
+    .song-btn:hover {
+      background: #333;
+    }
+
+    .controls {
+      margin: 20px 0;
+    }
+
+    .controls button {
+      padding: 10px 20px;
+      font-size: 20px;
+      border: none;
+      border-radius: 10px;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+
+    .song {
+      white-space: pre-wrap;
+      line-height: 2;
+      font-size: 22px;
+    }
+
+    .chord {
+      color: red;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Пісенник</h1>
+
+<div id="songs"></div>
+
+<div class="controls">
+  <button onclick="changeKey(-1)">-</button>
+  <button onclick="changeKey(1)">+</button>
+</div>
+
+<div id="song" class="song"></div>
+
+<script>
+  const NOTES = [
+    'C','C#','D','D#','E','F',
+    'F#','G','G#','A','A#','B'
+  ]
+
+  let currentSong = null
+  let transpose = 0
+
+  async function loadSongs() {
+
+    const response = await fetch('./songs-manifest.json')
+
+    const files = await response.json()
+
+    const songsDiv = document.getElementById('songs')
+
+    songsDiv.innerHTML = ''
+
+    files.forEach(file => {
+
+      const btn = document.createElement('button')
+
+      btn.className = 'song-btn'
+
+      btn.innerText = file.replace('.json', '')
+
+      btn.onclick = () => loadSong(file)
+
+      songsDiv.appendChild(btn)
+    })
+  }
+
+  async function loadSong(file) {
+
+    const response = await fetch('./songs/' + file)
+
+    currentSong = await response.json()
+
+    transpose = 0
+
+    renderSong()
+  }
+
+  function changeKey(step) {
+
+    transpose += step
+
+    renderSong()
+  }
+
+  function transposeChord(chord, step) {
+
+    const match = chord.match(/^([A-G]#?)(.*)$/)
+
+    if (!match) return chord
+
+    const root = match[1]
+    const suffix = match[2]
+
+    let index = NOTES.indexOf(root)
+
+    if (index === -1) return chord
+
+    index = (index + step + NOTES.length) % NOTES.length
+
+    return NOTES[index] + suffix
+  }
+
+  function renderSong() {
+
+    if (!currentSong) return
+
+    let html = ''
+
+    currentSong.lines.forEach(line => {
+
+      let chords = ''
+
+      line.chords.forEach(chord => {
+
+        chords += `
+<span class="chord">
+${transposeChord(chord, transpose)}
+</span>
+`
+      })
+
+      html += `
+${chords}
+${line.lyrics}
+
+`
+    })
+
+    document.getElementById('song').innerHTML = html
+  }
+
+  loadSongs()
+</script>
+
+</body>
+</html>
